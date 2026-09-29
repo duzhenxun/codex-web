@@ -11,7 +11,38 @@ app-server method — while adding a few local `cw/*` helpers.
 browser  <--ws /ws-->  codex-web server  <--ws-->  codex app-server (ws://127.0.0.1:25258)
 ```
 
-## Quick start
+## Install
+
+The published package is **`@zhenxun/codex-web`** — the bare name `codex-web` is
+already taken on npm, so always use the scope. The installed command is still
+`codex-web`.
+
+```bash
+# global install (then run `codex-web`)
+npm install -g @zhenxun/codex-web
+npm install -g @zhenxun/codex-web@latest     # force the newest version
+
+# or run without installing
+npx @zhenxun/codex-web                       # start the UI
+npx @zhenxun/codex-web ws                    # WS client (default ws://127.0.0.1:25258)
+npx @zhenxun/codex-web ws --port 25258       # WS client on an explicit port
+npx @zhenxun/codex-web ps                    # list processes and ports
+```
+
+With the global install, the executable is `codex-web`:
+
+```bash
+codex-web                                    # http://127.0.0.1:25257
+codex-web ws                                 # interactive WS client
+codex-web ws --port 25259
+codex-web ps                                 # processes + ports
+```
+
+> Requires Node.js >= 22. If `npx @zhenxun/codex-web` fails to find the binary
+> on your setup, use `npx -p @zhenxun/codex-web codex-web ...` or a global
+> install instead.
+
+## Quick start (from source)
 
 ```bash
 npm install
