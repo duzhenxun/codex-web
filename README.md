@@ -1,0 +1,341 @@
+# codex-web
+
+A browser cockpit for the [Codex CLI](https://github.com/openai/codex) `app-server`.
+Chat, tool calls, diffs and approval dialogs in one tab.
+
+The server is a **transparent JSON-RPC proxy + process supervisor**. It starts
+`codex app-server` on boot, keeps it alive, and lets the browser invoke any
+app-server method — while adding a few local `cw/*` helpers.
+
+```
+browser  <--ws /ws-->  codex-web server  <--ws-->  codex app-server (ws://127.0.0.1:25258)
+```
+
+## Quick start
+
+```bash
+npm install
+npm run build          # builds web/ (Vite) + server/ (tsc)
+npm start              # http://127.0.0.1:25257
+```
+
+`npm start` boots the server, spawns `codex app-server --listen ws://127.0.0.1:25258`
+(unless a healthy one is already running), and opens your browser. The app-server
+is started as-is: by default codex-web injects **no** `chatgpt_base_url` /
+`model_providers.capture.base_url` overrides and runs no capture proxy. Set
+`CW_REQUEST_INSPECTOR=1` to opt into the loopback request/response inspector
+(which is what makes each session show live request/response logs).
+
+## Development
+
+```bash
+npm run dev
+```
+
+Runs the backend (`tsx watch`, port **25257**) and Vite (`http://localhost:5174`)
+together. Vite proxies `/api` and `/ws` to the backend. The frontend lives in
+`web/`; backend in `server/`.
+
+To iterate on the UI without spending model tokens, `web/dev-mock-server.mjs`
+is a scripted stand-in for the backend that speaks the same protocol and
+replays a recorded turn (reasoning, streamed message, command output, diff,
+token usage, an approval request). It listens on `:25257/ws`, so the Vite proxy
+picks it up with no config change:
+
+```bash
+node web/dev-mock-server.mjs   # in place of `npm run dev:server`
+npm run dev:web
+```
+
+Other useful scripts:
+
+| Script                   | What it does                                          |
+| ------------------------ | ----------------------------------------------------- |
+| `npm run build:server`   | `tsc -p tsconfig.server.json` → `dist/`               |
+| `npm run stop`           | Gracefully stops the service on `CW_PORT` (default 25257) |
+| `npm run restart`        | Stops and starts the service again                    |
+| `npm run typecheck`      | Typechecks server + web without emitting              |
+| `npm run smoke`          | End-to-end smoke test against a real codex app-server |
+
+## CLI
+
+```
+codex-web [options]
+
+  --port <n>          Port for the web UI (env CW_PORT, default 25257)
+  --host <h>          Host to bind (env CW_HOST, default 127.0.0.1)
+  --cwd <path>        Working directory for codex (env CW_CWD, default cwd)
+  --codex-port <n>    app-server port (env CW_CODEX_PORT, default 25258)
+  --codex-bin <name>  codex executable (env CW_CODEX_BIN, default "codex")
+  --no-browser        Do not open the browser (env CW_OPEN=0)
+  --help, -h          Show help
+  --version, -v       Show version
+```
+
+Flags win over environment variables.
+
+## Environment variables
+
+| Variable           | Default       | Meaning                                                          |
+| ------------------ | ------------- | ---------------------------------------------------------------- |
+| `CW_PORT`          | `25257`        | Web UI / HTTP port                                               |
+| `CW_HOST`          | `127.0.0.1`   | Bind host (loopback by default)                                  |
+| `CW_CWD`           | `process.cwd()` | Default working directory for codex                            |
+| `CW_CODEX_PORT`    | `25258`        | app-server port                                                  |
+| `CW_CODEX_BIN`     | `codex`       | codex executable                                                 |
+| `CW_ALLOW_ORIGINS` | *(unset)*     | Comma-separated extra allowed WS origins. When unset: same-origin + localhost only |
+| `CW_OPEN`          | *(unset)*     | `0` disables auto-opening the browser                            |
+| `CW_REQUEST_INSPECTOR` | *(unset)* | Set to `1` to enable the loopback request/response capture proxy. Off by default; when off, no `chatgpt_base_url` / `model_providers.capture.base_url` overrides are injected |
+| `CW_CODEX_UPSTREAM` | `https://chatgpt.com/backend-api/codex` | Upstream URL for the capture proxy |
+| `CW_LOG_MAX_BODY` | `16 MiB`        | Maximum body retained per exchange                               |
+
+## Architecture
+
+- **`server/request-inspector.ts`** — optional (opt-in via `CW_REQUEST_INSPECTOR=1`)
+  loopback Responses API proxy: forwards
+  managed Codex traffic, redacts sensitive headers, incrementally captures SSE,
+  persists `data/YYYY-MM-DD/*.json` with `0600` permissions, and serves
+  thread-filtered summaries/details to the UI.
+- **`server/codex-supervisor.ts`** — owns the `codex app-server` child:
+  - Reuses a healthy app-server if the port already answers `GET /readyz`
+    (external attach); otherwise spawns one.
+  - Readiness via stdout (`listening on:`) **and** `/readyz` polling.
+  - stdout/stderr → 500-line ring buffer (`cw/codex/log`).
+  - Auto-restart with exponential backoff (cap 10s), `restarts` counter.
+  - Clean shutdown: SIGTERM then SIGKILL; only kills children **we** spawned.
+- **`server/codex-client.ts`** — WS JSON-RPC client: `initialize` on every
+  (re)connect, id-correlated `request()`, `notification` / `serverRequest`
+  events, `respond()` / `respondError()`.
+- **`server/fs-service.ts`** — `cw/paths`, `cw/fs/list`, `cw/fs/read`.
+- **`server/index.ts`** — express + `ws` hub, `/api/health`, `/api/version`,
+  static SPA serving from `web/dist`, origin checks, 30s heartbeat.
+- **`bin/codex-web.mjs`** — CLI entry, loads `dist/server/index.js`.
+
+## Browser ↔ server protocol
+
+See [`shared/protocol.ts`](./shared/protocol.ts) for the frozen envelope.
+Everything except `cw/*` is proxied verbatim to codex.
+
+Client → server: `rpc`, `reply`, `ping`.
+Server → client: `welcome`, `status`, `rpcResult`, `event`, `serverRequest`, `pong`.
+
+### Local methods (`cw/*`)
+
+| Method                | Params                        | Result                                   |
+| --------------------- | ----------------------------- | ---------------------------------------- |
+| `cw/paths`            | —                             | `{ cwd, home, codexHome }`               |
+| `cw/fs/list`          | `{ path?, maxEntries? }`      | `{ path, entries: FsEntry[] }`           |
+| `cw/fs/read`          | `{ path, maxBytes? }`         | `{ path, text, truncated }`              |
+| `cw/codex/status`     | —                             | `{ status: CodexStatus }`                |
+| `cw/codex/restart`    | —                             | `{ ok: true }`                           |
+| `cw/codex/log`        | —                             | `{ lines: string[] }`                    |
+| `cw/request-logs/list` | `{ threadId, limit? }`       | Thread-filtered live/history summaries |
+| `cw/request-logs/detail` | `{ id }`                   | Full request/response exchange          |
+
+`cw/fs/list` sorts directories first and skips `node_modules` / `.git` unless
+you are already inside one. `cw/fs/read` refuses binary files (NUL byte) and
+truncates at `maxBytes` (default 256 KB).
+
+### Error codes
+
+RPC failures come back as `{ type: "rpcResult", ok: false, error: { code, message, data? } }`:
+
+| Code     | Meaning                                                        |
+| -------- | -------------------------------------------------------------- |
+| `-32001` | codex app-server not connected (proxy guard)                   |
+| `-32002` | codex connection closed / client closed                        |
+| `-32003` | local request timeout (initialize only)                        |
+| `-32000` | generic fs / internal error                                    |
+| `-32601` | unknown `cw/*` method                                          |
+| `-32602` | invalid params                                                |
+
+### Approvals / server requests
+Codex server→client requests (approvals, user input, dynamic tool calls) are
+broadcast to **all** connected tabs as `serverRequest`. The first `reply` with a
+matching `id` wins; later replies are ignored. After resolving, the server
+broadcasts a codex-style notification:
+
+```jsonc
+{ "type": "event", "method": "serverRequest/resolved", "params": { "threadId": "...", "requestId": 123 } }
+```
+
+so other tabs can dismiss their dialog.
+
+### Notes for the frontend
+
+- Messages are accepted with or without `"jsonrpc": "2.0"`.
+- `status.codex.pid === null && status.codex.phase === "ready"` means the server
+  attached to an **external** app-server (it will not be killed on shutdown).
+- The server re-sends `initialize` after every codex reconnect; browsers can
+  hydrate a thread mid-session with `thread/read` (`includeTurns: true`).
+- `ServerInfo.codexVersion` is parsed from the handshake `userAgent` and may be
+  `null` until the first connection completes.
+
+## Approvals never show up?
+
+Codex routes escalation requests (sandbox escapes, blocked network access, MCP
+prompts) to a **reviewer**, configurable per thread via `approvalsReviewer`:
+
+| Value                | Behaviour                                                        |
+| -------------------- | ---------------------------------------------------------------- |
+| `user`               | Every request becomes a dialog in this UI                        |
+| `auto_review`        | A prompted subagent decides — **no dialog is ever sent to the UI** |
+| `guardian_subagent`  | Same idea, guardian variant                                      |
+
+The default is `user`, but if your `~/.codex/config.toml` contains
+`approvals_reviewer = "auto_review"` the browser will stay silent and commands
+just run. Open **Settings → Who reviews approvals** and pick **Ask me** to route
+them to this UI for a thread you start (or the running turn).
+
+Read-only commands that the sandbox already allows never prompt at all — ask
+codex to write outside the workspace (e.g. into `~`) or hit the network to
+exercise the dialog.
+
+## Frontend features
+
+- **Thread sidebar** — paginated/searchable `thread/list`, rename, archive,
+  delete, fork; status dots and relative times. The list shows **active threads
+  only** and the project picker scopes it, so there is no active/archived tab;
+  `Archive` is available from a thread's `…` menu and hides it.
+- **Streaming transcript** — agent text, reasoning summaries, plans, live
+  command output, `turn/diff/updated`. Deltas are coalesced on
+  `requestAnimationFrame` so long turns stay smooth.
+- **Markdown** rendering with GFM + syntax highlighting; `[path](/abs/path)`
+  links open a file preview sheet backed by `cw/fs/read`.
+- **Command cards** — command, cwd, streamed output; only running/failed
+  statuses are shown when they carry useful signal.
+- **Diff cards** — unified-diff rendering with line numbers and +/- colouring.
+  Note that codex's `FileUpdateChange.diff` is **not** always a diff: it is raw
+  file content for `add`/`delete` and bare `@@` hunks for `update`, so the
+  renderer normalises all three.
+- **Approval dialogs** — command / file-change / user-input requests, with
+  Accept, Accept for session, Decline, Cancel, plus an auto-approve toggle.
+- **Composer** — Enter to send, Stop to interrupt, `@file` mentions via
+  `fuzzyFileSearch`, image paste, message queueing while a turn runs.
+- **Header** — model + reasoning effort, approval policy, sandbox, approvals
+  reviewer, token/context meter, codex status + restart + log drawer.
+- **Session logs** — open from the active thread's terminal icon or `…` menu;
+  groups requests by turn, polls live exchanges, and provides readable,
+  request JSON, response JSON, and raw SSE views. Capture is enabled for
+  app-server processes managed by this project; an external app-server cannot
+  be intercepted and will show no new captures.
+
+## Skins
+
+The UI ships four skins, switchable from the palette button in the header and
+remembered per browser (`localStorage`):
+
+| Skin | Look |
+| --- | --- |
+| **White** *(default)* | White canvas, grey chrome, blue accent — GitHub / pi-web style |
+| **Warm paper** | Cream canvas, ochre accent, easier on the eyes |
+| **Mist** | Cool grey-green canvas, teal accent |
+| **Midnight** | Near-black canvas, violet accent |
+
+Implementation notes:
+
+- A skin is nothing but a `[data-theme="<id>"]` block of CSS variables in
+  `web/src/styles.css`; the layout never changes between skins.
+- `<html>` carries **two** attributes: `data-theme` (the skin) and `data-scheme`
+  (`light` / `dark`). Rules that only make sense for light backgrounds — the
+  syntax-highlighting palette, for instance — key off `data-scheme` so they are
+  written once instead of per skin.
+- The registry lives in `web/src/lib/theme.ts`. Adding a skin = one entry there
+  plus one variable block in `styles.css`.
+- `web/index.html` applies the stored skin in an inline script *before first
+  paint*, otherwise the `:root` (dark) fallback flashes on load.
+
+## Projects (workspaces)
+
+The selector at the top of the sidebar switches the **project** — codex's `cwd`.
+It is the app's primary navigation control:
+
+- The list is derived from the `cwd` of known codex threads, so projects appear
+  automatically as soon as you use them anywhere (CLI, TUI, this UI).
+- Each row shows a compact path, a dot and the number of known threads; the
+  current project is checked, and the app-server's default directory is pinned
+  to the top.
+- Selecting a project **re-scopes the thread list** (via `thread/list`'s `cwd`
+  filter), clears the transcript, and becomes the `cwd` for new threads.
+- `Use default directory` reverts to the app-server's cwd; `Custom path…` opens
+  a thread in any directory you type. The choice persists across reloads.
+- Counts come from a separate, **unscoped** `thread/list` (`refreshProjects`),
+  because the visible list is filtered and therefore cannot provide totals.
+
+## Layout controls
+
+Everything about the workspace layout is draggable and remembered per browser:
+
+| Control | How | Persisted as |
+| --- | --- | --- |
+| Collapse the sidebar | Header panel button, the `X` in the sidebar, or `⌘/Ctrl+B` | `cw-sidebar-collapsed` |
+| Sidebar width | Drag its right edge (220–560px, max 50% of the window) | `cw-sidebar-width` |
+| File panel width | Drag its left edge | `cw-file-panel-width` |
+
+Details worth knowing:
+
+- **Double-click a resize handle** to reset that panel to its default width.
+- Widths are applied through CSS variables (`--sidebar-w`, `--file-panel-w`)
+  rather than inline `width`, so the mobile media queries can still turn the
+  sidebar into a drawer and the file panel into a full-height sheet. Resize
+  handles are not rendered at all in those modes.
+- Dragging uses **pointer capture**, so the drag survives the cursor leaving the
+  handle or the window.
+- `⌘/Ctrl+K` reveals the sidebar before focusing search, so it works while
+  collapsed. `⌘/Ctrl+N` starts a thread, `⌘/Ctrl+B` toggles the sidebar.
+
+## Composer
+
+The message box is deliberately compact and self-sizing — there is nothing to
+configure:
+
+- It **hugs the pane**: 10px from either side (no centred column), with the text
+  ~9px from the box's left edge and the Send button ~5px from its right edge.
+- It is **one line tall** by default, with the Send button on the same row,
+  vertically centred. The button is a flex sibling (not an overlay), so long
+  text can never slide underneath it.
+- It **grows automatically** as the text wraps, up to ~9 lines (200px); past
+  that the textarea scrolls internally instead of pushing the transcript off
+  screen. Deleting lines shrinks it back.
+- `Enter` sends, `Shift+Enter` inserts a newline, and IME composition is
+  respected (the keydown is ignored while composing).
+- While a turn is running the row swaps to **Stop** + **Queue**, and queued
+  messages are flushed automatically when the turn ends.
+
+## Verification
+
+`npm run smoke` runs a real end-to-end pass (spawns an app-server, starts a
+thread, runs a turn, asserts streamed events, `thread/read` hydration, and
+approval broadcast/dedupe).
+
+The UI was additionally driven in headless Chromium against a real
+`codex-cli 0.156.1` app-server and verified for: thread creation, streamed
+turn completion, command cards, add/update/delete diff rendering, the full
+approval round-trip (dialog → Accept → escalated command executes → turn
+completes), all four skins, project switching (thread list re-scoping +
+persistence across reload), sidebar collapse/expand, panel resizing
+(sidebar 288→428px, file panel 560→740px, both persisted), and the composer
+(48px / one line with Send on the same row → 87px at three lines → capped at
+200px and scrolling at twenty lines → shrinks back) — plus no theme flash before
+first paint and zero console errors throughout.
+
+### Startup races and process ownership
+
+Two things the server does so clients don't have to care:
+
+- **Ready wait.** A browser can attach while `codex app-server` is still booting
+  (or while the supervisor restarts it after a crash). Instead of failing the
+  client's first `model/list` / `thread/list` with `-32001`, the proxy waits up to
+  `CODEX_READY_WAIT_MS` (20s) for the app-server and only then reports an error.
+  The UI additionally re-runs its codex-dependent bootstrap whenever the
+  app-server transitions to connected, so a crash-restart recovers by itself.
+- **Process-group ownership.** `codex app-server` re-execs: the spawned shim forks
+  the real listener. The child is therefore started `detached: true` and stopped
+  by signalling the whole **process group** (`-pid`), with a group `SIGKILL` on
+  exit as a safety net. Signalling only the direct child would orphan the
+  listener, which keeps the port bound — the next start would then "attach" to
+  that stale process and `restart()` would be a silent no-op.
+
+## License
+
+MIT

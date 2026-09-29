@@ -1,0 +1,59 @@
+{
+	"name": "codex-web",
+	"version": "0.1.0",
+	"description": "Browser cockpit for the Codex CLI app-server — chat, tool calls, diffs and approvals in one tab",
+	"license": "MIT",
+	"type": "module",
+	"bin": {
+		"codex-web": "bin/codex-web.mjs"
+	},
+	"main": "bin/codex-web.mjs",
+	"files": [
+		"bin/",
+		"dist/",
+		"web/dist/",
+		"shared/",
+		"README.md"
+	],
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"scripts": {
+		"dev": "concurrently -k -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
+		"dev:server": "cross-env CW_PORT=25257 CW_ALLOW_ORIGINS=http://localhost:5174,http://127.0.0.1:5174 tsx watch server/index.ts",
+		"dev:web": "vite --config web/vite.config.ts",
+		"build": "npm run build:web && npm run build:server",
+		"build:web": "vite build --config web/vite.config.ts",
+		"build:server": "tsc -p tsconfig.server.json",
+		"start": "node bin/codex-web.mjs",
+		"stop": "node scripts/manage-server.mjs stop",
+		"restart": "node scripts/manage-server.mjs restart",
+		"smoke": "tsx test/smoke.ts",
+		"typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p web/tsconfig.json --noEmit"
+	},
+	"dependencies": {
+		"compression": "^1.8.1",
+		"express": "^4.21.2",
+		"highlight.js": "^11.11.1",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0",
+		"react-markdown": "^10.1.0",
+		"rehype-highlight": "^7.0.2",
+		"remark-gfm": "^4.0.1",
+		"ws": "^8.18.3"
+	},
+	"devDependencies": {
+		"@types/compression": "^1.8.1",
+		"@types/express": "^4.17.23",
+		"@types/node": "^22.15.3",
+		"@types/react": "^19.1.2",
+		"@types/react-dom": "^19.1.2",
+		"@types/ws": "^8.18.1",
+		"@vitejs/plugin-react": "^4.4.1",
+		"concurrently": "^9.1.2",
+		"cross-env": "^7.0.3",
+		"tsx": "^4.19.4",
+		"typescript": "^5.8.3",
+		"vite": "^6.3.4"
+	}
+}

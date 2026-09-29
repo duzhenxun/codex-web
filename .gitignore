@@ -1,0 +1,8 @@
+node_modules/
+dist/
+web/dist/
+*.log
+.DS_Store
+.cw-data/
+# Local request/response captures may contain prompts and source code.
+data/

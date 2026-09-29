@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<meta name="color-scheme" content="dark light" />
+		<title>Codex Web</title>
+		<link rel="icon" href="/favicon.svg" />
+		<script>
+			// Apply the skin before first paint. Without this the page renders with the
+			// `:root` (dark) fallback for a frame and flashes when React mounts.
+			// Keep the skin ids in sync with web/src/lib/theme.ts.
+			(function () {
+				try {
+					var t = localStorage.getItem("cw-theme") || "light";
+					var light = t === "light" || t === "paper" || t === "mist";
+					var r = document.documentElement;
+					r.dataset.theme = light || t === "dark" ? t : "light";
+					r.dataset.scheme = light ? "light" : "dark";
+					r.style.colorScheme = light ? "light" : "dark";
+				} catch (e) {
+					var r2 = document.documentElement;
+					r2.dataset.theme = "light";
+					r2.dataset.scheme = "light";
+				}
+			})();
+		</script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>
