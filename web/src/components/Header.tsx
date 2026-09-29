@@ -69,6 +69,7 @@ export function Header({ onOpenSidebar, sidebarVisible, theme, onSetTheme, onOpe
 		setAutoApprove,
 		restartCodex,
 		fetchLogs,
+		renameThread,
 		account,
 		info,
 	} = useCodex();
@@ -80,6 +81,9 @@ export function Header({ onOpenSidebar, sidebarVisible, theme, onSetTheme, onOpe
 	const [logsLoading, setLogsLoading] = useState(false);
 	const popRef = useRef<HTMLDivElement>(null);
 	const themeRef = useRef<HTMLDivElement>(null);
+	const titleInputRef = useRef<HTMLInputElement>(null);
+	const [editingTitle, setEditingTitle] = useState(false);
+	const [titleDraft, setTitleDraft] = useState("");
 
 	// One shared click-outside/Escape handler for every header popover.
 	useEffect(() => {
@@ -128,6 +132,31 @@ export function Header({ onOpenSidebar, sidebarVisible, theme, onSetTheme, onOpe
 
 	const title = activeThread ? activeThread.name?.trim() || activeThread.id.slice(0, 12) : "New thread";
 
+	// Click the header title to rename the thread (same `thread/setName` the
+	// sidebar's Rename action uses). Enter/blur commits, Escape cancels.
+	const startEditTitle = useCallback(() => {
+		if (!activeThread) return;
+		setTitleDraft(activeThread.name?.trim() || activeThread.id.slice(0, 12));
+		setEditingTitle(true);
+	}, [activeThread]);
+
+	const commitTitle = useCallback(() => {
+		const name = titleDraft.trim();
+		if (activeThread && name && name !== (activeThread.name?.trim() || activeThread.id.slice(0, 12))) {
+			void renameThread(activeThread.id, name);
+		}
+		setEditingTitle(false);
+	}, [activeThread, titleDraft, renameThread]);
+
+	useEffect(() => {
+		if (editingTitle) requestAnimationFrame(() => titleInputRef.current?.select());
+	}, [editingTitle]);
+
+	// Switching threads abandons an in-progress rename.
+	useEffect(() => {
+		setEditingTitle(false);
+	}, [activeThread?.id]);
+
 	return (
 		<header className="header">
 			<div className="header-left">
@@ -140,7 +169,36 @@ export function Header({ onOpenSidebar, sidebarVisible, theme, onSetTheme, onOpe
 					{sidebarVisible ? <IconPanelLeft size={17} /> : <IconMenu size={17} />}
 				</button>
 				<div className="header-title" title={activeThread?.id}>
-					<span className="header-title-text">{title}</span>
+					{activeThread && editingTitle ? (
+						<input
+							ref={titleInputRef}
+							className="header-title-input"
+							value={titleDraft}
+							onChange={(e) => setTitleDraft(e.target.value)}
+							onBlur={commitTitle}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.preventDefault();
+									e.currentTarget.blur();
+								} else if (e.key === "Escape") {
+									e.preventDefault();
+									setEditingTitle(false);
+								}
+							}}
+							aria-label="Thread name"
+						/>
+					) : activeThread ? (
+						<button
+							type="button"
+							className="header-title-text header-title-btn"
+							title="Click to rename"
+							onClick={startEditTitle}
+						>
+							{title}
+						</button>
+					) : (
+						<span className="header-title-text">{title}</span>
+					)}
 					{activeThread ? (
 						<span className="header-cwd" title={activeThread.cwd}>
 							{activeThread.cwd}
