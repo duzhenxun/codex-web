@@ -103,6 +103,9 @@ codex-web ws -y --model gpt-5.5 "..."  # auto-approve approvals, pick a model
 
 Env: `CODEX_WS_URL` / `CODEX_WS_HOST` / `CODEX_WS_PORT`.
 
+Connection priority: `--url` > `--host`/`--port` (`--addr`) > env vars > defaults
+(`127.0.0.1:25258`).
+
 ## Environment variables
 
 | Variable           | Default       | Meaning                                                          |

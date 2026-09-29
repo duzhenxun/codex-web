@@ -49,6 +49,8 @@ export function parseWsArgs(argv) {
 		url: null,
 		host: process.env.CODEX_WS_HOST || DEFAULT_HOST,
 		port: Number(process.env.CODEX_WS_PORT) || DEFAULT_PORT,
+		hostExplicit: false,
+		portExplicit: false,
 		cwd: process.cwd(),
 		thread: null,
 		model: null,
@@ -76,13 +78,21 @@ export function parseWsArgs(argv) {
 				if (m) {
 					opts.host = m[1].replace(/^\[|\]$/g, "");
 					opts.port = Number(m[2]);
-				} else if (/^\d+$/.test(v)) opts.port = Number(v);
-				else opts.host = v;
+					opts.hostExplicit = true;
+					opts.portExplicit = true;
+				} else if (/^\d+$/.test(v)) {
+					opts.port = Number(v);
+					opts.portExplicit = true;
+				} else {
+					opts.host = v;
+					opts.hostExplicit = true;
+				}
 				break;
 			}
 			case "-p":
 			case "--port":
 				opts.port = Number(next());
+				opts.portExplicit = true;
 				break;
 			case "--cwd":
 				opts.cwd = next();
@@ -128,14 +138,28 @@ export function parseWsArgs(argv) {
 	return opts;
 }
 
-/** Combine --url / --host / --port / env into a single ws:// URL. */
+/** Normalise a raw address into a ws:// URL (accepts ws/wss/http/https/bare host:port). */
+function normalizeWsUrl(raw) {
+	if (/^wss?:\/\//i.test(raw)) return raw;
+	if (/^https?:\/\//i.test(raw)) return raw.replace(/^http/i, "ws");
+	return "ws://" + raw;
+}
+
+/** Combine --url / --host / --port / env into a single ws:// URL.
+ *
+ * Priority: --url > --host/--port > env (CODEX_WS_URL / CODEX_WS_HOST / CODEX_WS_PORT) > defaults.
+ */
 export function resolveWsUrl(o) {
-	const raw = String(o.url ?? process.env.CODEX_WS_URL ?? "").trim().replace(/^["']|["']$/g, "");
-	if (raw) {
-		if (/^wss?:\/\//i.test(raw)) return raw;
-		if (/^https?:\/\//i.test(raw)) return raw.replace(/^http/i, "ws");
-		return "ws://" + raw;
+	const flagUrl = String(o.url ?? "").trim().replace(/^["']|["']$/g, "");
+	if (flagUrl) return normalizeWsUrl(flagUrl);
+
+	// An explicit --host/--port (or --addr) must beat an env URL.
+	const explicitHostPort = Boolean(o.hostExplicit || o.portExplicit);
+	if (!explicitHostPort) {
+		const envUrl = String(process.env.CODEX_WS_URL ?? "").trim().replace(/^["']|["']$/g, "");
+		if (envUrl) return normalizeWsUrl(envUrl);
 	}
+
 	if (!Number.isInteger(o.port) || o.port < 1 || o.port > 65535) {
 		throw new Error(`invalid port: ${o.port} (expected 1-65535)`);
 	}
