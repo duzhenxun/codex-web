@@ -6,3 +6,6 @@ web/dist/
 .cw-data/
 # Local request/response captures may contain prompts and source code.
 data/
+
+# npm pack output
+*.tgz

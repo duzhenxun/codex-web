@@ -4,6 +4,25 @@
 	"description": "Browser cockpit for the Codex CLI app-server — chat, tool calls, diffs and approvals in one tab",
 	"license": "MIT",
 	"type": "module",
+	"author": "duzhenxun",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/duzhenxun/codex-web.git"
+	},
+	"homepage": "https://github.com/duzhenxun/codex-web#readme",
+	"bugs": {
+		"url": "https://github.com/duzhenxun/codex-web/issues"
+	},
+	"keywords": [
+		"codex",
+		"codex-cli",
+		"openai",
+		"app-server",
+		"web-ui",
+		"ai",
+		"chat",
+		"cli"
+	],
 	"bin": {
 		"codex-web": "bin/codex-web.mjs"
 	},
@@ -12,7 +31,8 @@
 		"bin/",
 		"dist/",
 		"web/dist/",
-		"shared/",
+		"scripts/",
+		"shared/protocol.ts",
 		"README.md"
 	],
 	"engines": {
@@ -25,6 +45,7 @@
 		"build": "npm run build:web && npm run build:server",
 		"build:web": "vite build --config web/vite.config.ts",
 		"build:server": "tsc -p tsconfig.server.json",
+		"prepack": "npm run build",
 		"start": "node bin/codex-web.mjs",
 		"stop": "node scripts/manage-server.mjs stop",
 		"restart": "node scripts/manage-server.mjs restart",
@@ -32,18 +53,10 @@
 		"typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p web/tsconfig.json --noEmit"
 	},
 	"dependencies": {
-		"compression": "^1.8.1",
 		"express": "^4.21.2",
-		"highlight.js": "^11.11.1",
-		"react": "^19.1.0",
-		"react-dom": "^19.1.0",
-		"react-markdown": "^10.1.0",
-		"rehype-highlight": "^7.0.2",
-		"remark-gfm": "^4.0.1",
 		"ws": "^8.18.3"
 	},
 	"devDependencies": {
-		"@types/compression": "^1.8.1",
 		"@types/express": "^4.17.23",
 		"@types/node": "^22.15.3",
 		"@types/react": "^19.1.2",
@@ -52,6 +65,12 @@
 		"@vitejs/plugin-react": "^4.4.1",
 		"concurrently": "^9.1.2",
 		"cross-env": "^7.0.3",
+		"highlight.js": "^11.11.1",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0",
+		"react-markdown": "^10.1.0",
+		"rehype-highlight": "^7.0.2",
+		"remark-gfm": "^4.0.1",
 		"tsx": "^4.19.4",
 		"typescript": "^5.8.3",
 		"vite": "^6.3.4"
