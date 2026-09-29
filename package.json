@@ -1,6 +1,6 @@
 {
 	"name": "@zhenxun/codex-web",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Browser cockpit for the Codex CLI app-server — chat, tool calls, diffs and approvals in one tab",
 	"license": "MIT",
 	"type": "module",
