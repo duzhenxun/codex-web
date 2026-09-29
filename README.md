@@ -13,20 +13,19 @@ browser  <--ws /ws-->  codex-web server  <--ws-->  codex app-server (ws://127.0.
 
 ## Install
 
-The published package is **`@zhenxun/codex-web`** — the bare name `codex-web` is
-already taken on npm, so always use the scope. The installed command is still
+The published package is **`oh-my-agent-web`**. The installed command is
 `codex-web`.
 
 ```bash
 # global install (then run `codex-web`)
-npm install -g @zhenxun/codex-web
-npm install -g @zhenxun/codex-web@latest     # force the newest version
+npm install -g oh-my-agent-web
+npm install -g oh-my-agent-web@latest     # force the newest version
 
 # or run without installing
-npx @zhenxun/codex-web                       # start the UI
-npx @zhenxun/codex-web ws                    # WS client (default ws://127.0.0.1:25258)
-npx @zhenxun/codex-web ws --port 25258       # WS client on an explicit port
-npx @zhenxun/codex-web ps                    # list processes and ports
+npx oh-my-agent-web                       # start the UI
+npx oh-my-agent-web ws                    # WS client (default ws://127.0.0.1:25258)
+npx oh-my-agent-web ws --port 25258       # WS client on an explicit port
+npx oh-my-agent-web ps                    # list processes and ports
 ```
 
 With the global install, the executable is `codex-web`:
@@ -38,8 +37,8 @@ codex-web ws --port 25259
 codex-web ps                                 # processes + ports
 ```
 
-> Requires Node.js >= 22. If `npx @zhenxun/codex-web` fails to find the binary
-> on your setup, use `npx -p @zhenxun/codex-web codex-web ...` or a global
+> Requires Node.js >= 22. If `npx oh-my-agent-web` fails to find the binary
+> on your setup, use `npx -p oh-my-agent-web codex-web ...` or a global
 > install instead.
 
 ### Update notification
@@ -49,7 +48,7 @@ a newer version and prints a short notice when one exists:
 
 ```
   Update available: codex-web 0.1.0 → 0.2.0
-      npm install -g @zhenxun/codex-web@latest
+      npm install -g oh-my-agent-web@latest
       (disable this check with CW_NO_UPDATE_CHECK=1)
 ```
 

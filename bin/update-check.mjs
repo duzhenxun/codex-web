@@ -12,7 +12,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-const PKG = "@zhenxun/codex-web";
+const PKG = "oh-my-agent-web";
 const REGISTRY = `https://registry.npmjs.org/${PKG.replace("/", "%2f")}/latest`;
 const DEFAULT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 const DEFAULT_TIMEOUT_MS = 1500;
