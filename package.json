@@ -1,5 +1,5 @@
 {
-	"name": "codex-web",
+	"name": "@zhenxun/codex-web",
 	"version": "0.1.0",
 	"description": "Browser cockpit for the Codex CLI app-server — chat, tool calls, diffs and approvals in one tab",
 	"license": "MIT",
@@ -37,6 +37,9 @@
 	],
 	"engines": {
 		"node": ">=22.19.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"scripts": {
 		"dev": "concurrently -k -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
