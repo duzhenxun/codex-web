@@ -50,6 +50,7 @@
 		"build:server": "tsc -p tsconfig.server.json",
 		"prepack": "npm run build",
 		"start": "node bin/codex-web.mjs",
+		"ws": "node bin/codex-web.mjs ws",
 		"stop": "node scripts/manage-server.mjs stop",
 		"restart": "node scripts/manage-server.mjs restart",
 		"smoke": "tsx test/smoke.ts",

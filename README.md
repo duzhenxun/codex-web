@@ -56,6 +56,7 @@ Other useful scripts:
 | `npm run restart`        | Stops and starts the service again                    |
 | `npm run typecheck`      | Typechecks server + web without emitting              |
 | `npm run smoke`          | End-to-end smoke test against a real codex app-server |
+| `npm run ws`             | WebSocket client for the app-server (see below) |
 
 ## CLI
 
@@ -87,6 +88,14 @@ codex-web ws --port 25259              # explicit port
 codex-web ws --url ws://host:port      # explicit address
 codex-web ws -t <threadId> "continue"  # resume an existing thread
 codex-web ws -y --model gpt-5.5 "..."  # auto-approve approvals, pick a model
+```
+
+Run the same client through npm (pass flags after `--`):
+
+```bash
+npm run ws                             # interactive
+npm run ws -- --port 25259
+npm run ws -- -t <threadId> "continue"
 ```
 
 | Flag | Meaning |
