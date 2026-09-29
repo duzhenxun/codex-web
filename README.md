@@ -74,6 +74,35 @@ codex-web [options]
 
 Flags win over environment variables.
 
+### `codex-web ws` — WebSocket client
+
+Connect straight to the app-server over its WebSocket (default
+`ws://127.0.0.1:25258`), without going through the browser UI:
+
+```bash
+codex-web ws                           # interactive: type a message, Enter to send (Ctrl-D to exit)
+codex-web ws "list the files here"     # one-shot, then exit
+echo "write a hello world" | codex-web ws
+codex-web ws --port 25259              # explicit port
+codex-web ws --url ws://host:port      # explicit address
+codex-web ws -t <threadId> "continue"  # resume an existing thread
+codex-web ws -y --model gpt-5.5 "..."  # auto-approve approvals, pick a model
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--url <ws://host:port>` | Full address (bare `host:port` also works) |
+| `--addr <host:port>` / `--host <h>` / `-p, --port <n>` | Address or port (default `127.0.0.1:25258`) |
+| `--cwd <dir>` | Working directory (default: current dir) |
+| `-t, --thread <id>` | Resume an existing thread |
+| `--model <name>` | Model id |
+| `--sandbox <mode>` / `--approval <mode>` | Session sandbox / approval policy |
+| `-y, --auto-approve` / `--decline` | Auto-answer approvals instead of prompting |
+| `-v, --verbose` / `--json` | Print reasoning deltas / raw event JSON |
+| `--timeout <sec>` | Max wait per turn (default 1800) |
+
+Env: `CODEX_WS_URL` / `CODEX_WS_HOST` / `CODEX_WS_PORT`.
+
 ## Environment variables
 
 | Variable           | Default       | Meaning                                                          |
