@@ -18,9 +18,11 @@ const HELP = `codex-web — browser UI for the Codex CLI app-server
 Usage:
   codex-web [options]
   codex-web ws [options] ["message" ...]   Connect to the app-server over WebSocket
+  codex-web ps [--json]                    Show running processes and their ports
 
 Commands:
   ws                  WebSocket client for the codex app-server (run 'codex-web ws --help')
+  ps                  Show running codex-web / app-server processes and their ports
 
 Options:
   --port <n>          Port for the web UI (env CW_PORT, default 25257)
@@ -141,6 +143,13 @@ async function main() {
 	if (argv[0] === "ws") {
 		const { runWsClient } = await import("./codex-web-ws.mjs");
 		await runWsClient(argv.slice(1));
+		return;
+	}
+
+	// Subcommand: `codex-web ps [...]` (aliases: status, ports) — running processes/ports.
+	if (argv[0] === "ps" || argv[0] === "status" || argv[0] === "ports") {
+		const { runPs } = await import("./codex-web-ps.mjs");
+		await runPs(argv.slice(1));
 		return;
 	}
 

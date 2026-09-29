@@ -57,6 +57,7 @@ Other useful scripts:
 | `npm run typecheck`      | Typechecks server + web without emitting              |
 | `npm run smoke`          | End-to-end smoke test against a real codex app-server |
 | `npm run ws`             | WebSocket client for the app-server (see below) |
+| `npm run ps`             | List running codex-web / app-server processes and their ports |
 
 ## CLI
 
@@ -114,6 +115,27 @@ Env: `CODEX_WS_URL` / `CODEX_WS_HOST` / `CODEX_WS_PORT`.
 
 Connection priority: `--url` > `--host`/`--port` (`--addr`) > env vars > defaults
 (`127.0.0.1:25258`).
+
+### `codex-web ps` — processes & ports
+
+Show every running codex-web / codex app-server process, whether it is managed by
+this project or external, and which TCP ports it listens on:
+
+```bash
+codex-web ps            # table
+codex-web ps --json     # machine-readable
+```
+
+```
+TYPE        PID    PPID   SCOPE     PORTS  COMMAND
+app-server  16397  96476  managed   25258  node .../codex app-server --listen ws://127.0.0.1:25258
+app-server  5567   5216   external  -      /Applications/ChatGPT.app/.../codex app-server ...
+codex-web   96476  1      -         25257  node bin/codex-web.mjs --no-browser
+
+ports: ui=25257  app-server=25258
+  25257  listening: yes  pid: 96476
+  25258  listening: yes  pid: 16398
+```
 
 ## Environment variables
 

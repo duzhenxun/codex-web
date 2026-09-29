@@ -51,6 +51,7 @@
 		"prepack": "npm run build",
 		"start": "node bin/codex-web.mjs",
 		"ws": "node bin/codex-web.mjs ws",
+		"ps": "node bin/codex-web.mjs ps",
 		"stop": "node scripts/manage-server.mjs stop",
 		"restart": "node scripts/manage-server.mjs restart",
 		"smoke": "tsx test/smoke.ts",
