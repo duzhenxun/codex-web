@@ -42,6 +42,28 @@ codex-web ps                                 # processes + ports
 > on your setup, use `npx -p @zhenxun/codex-web codex-web ...` or a global
 > install instead.
 
+### Update notification
+
+Every run of `codex-web` (including the `ws` and `ps` subcommands) checks npm for
+a newer version and prints a short notice when one exists:
+
+```
+  Update available: codex-web 0.1.0 → 0.2.0
+      npm install -g @zhenxun/codex-web@latest
+      (disable this check with CW_NO_UPDATE_CHECK=1)
+```
+
+The check hits the registry at most once per 24h (result cached in
+`~/.cache/codex-web/update-check.json`), never blocks on errors, and is skipped
+for `--help` / `--version` / `--json`.
+
+| Env | Default | Meaning |
+| --- | --- | --- |
+| `CW_NO_UPDATE_CHECK` | *(unset)* | `1` disables the version check |
+| `CW_UPDATE_CHECK_INTERVAL_MS` | `86400000` (24h) | Minimum gap between registry checks |
+
+Also skipped automatically when `CI` or `NO_UPDATE_NOTIFIER` is set.
+
 ## Quick start (from source)
 
 ```bash

@@ -139,6 +139,23 @@ function parsePort(value, fallback) {
 async function main() {
 	const argv = process.argv.slice(2);
 
+	// Best-effort update notice (cached; skipped for help/version/json output).
+	// Never let this delay or break normal operation.
+	const skipUpdateCheck =
+		argv.includes("--json") ||
+		argv.includes("-h") ||
+		argv.includes("--help") ||
+		argv.includes("-v") ||
+		argv.includes("--version");
+	if (!skipUpdateCheck) {
+		try {
+			const { notifyUpdate } = await import("./update-check.mjs");
+			await notifyUpdate(readVersion());
+		} catch {
+			/* ignore */
+		}
+	}
+
 	// Subcommand: `codex-web ws [...]` — WebSocket client for the app-server.
 	if (argv[0] === "ws") {
 		const { runWsClient } = await import("./codex-web-ws.mjs");
